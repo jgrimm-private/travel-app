@@ -29,25 +29,32 @@ Open [http://localhost:3000](http://localhost:3000) and add your first trip.
 
 ## Connecting Dropbox (optional, but the fun part)
 
+One-time setup — after this the app stays connected permanently via a
+refresh token:
+
 1. Go to [dropbox.com/developers/apps](https://www.dropbox.com/developers/apps)
    and click **Create app**.
 2. Choose **Scoped access** → **Full Dropbox** (or App folder if you prefer),
    and name it anything (e.g. `my-trip-photos`).
 3. On the **Permissions** tab, enable `files.metadata.read` and
    `files.content.read`, then click Submit.
-4. On the **Settings** tab, click **Generate access token**.
-5. Copy `.env.example` to `.env.local` and paste the token:
+4. On the **Settings** tab, add an **OAuth 2 redirect URI**:
+   `http://localhost:3000/api/dropbox/callback`
+5. Copy `.env.example` to `.env.local` and paste the **App key**:
 
    ```
-   DROPBOX_ACCESS_TOKEN=sl.xxxxxxxx
+   DROPBOX_APP_KEY=xxxxxxxxxxxxxxx
    DROPBOX_PHOTOS_PATH=/Camera Uploads   # or leave empty to scan everything
    ```
 
-6. Restart the dev server. Every trip page now shows the photos you took
-   during that trip.
+6. Restart the dev server, open **⚙️ Settings** in the app, and click
+   **Connect Dropbox**. Approve access on Dropbox's page and you're done —
+   every trip page now shows the photos you took during that trip, forever.
 
-> Note: tokens generated this way expire after a few hours. For long-lived
-> access, set up the OAuth refresh-token flow — a good next milestone.
+The refresh token is stored in the local SQLite database (`data/`, which is
+gitignored). Use **Disconnect** on the Settings page to revoke it locally.
+A static `DROPBOX_ACCESS_TOKEN` in `.env.local` still works as a legacy
+fallback, but those tokens expire after a few hours.
 
 ## API
 
@@ -60,6 +67,10 @@ Open [http://localhost:3000](http://localhost:3000) and add your first trip.
 | DELETE | `/api/trips/:id`            | Delete trip                              |
 | GET    | `/api/trips/:id/photos`     | Dropbox photos matched to the trip       |
 | GET    | `/api/photos/thumbnail`     | Proxy a Dropbox photo thumbnail          |
+| GET    | `/api/dropbox/connect`      | Start the Dropbox OAuth flow (PKCE)      |
+| GET    | `/api/dropbox/callback`     | OAuth redirect target; stores the token  |
+| GET    | `/api/dropbox/status`       | Connection status                        |
+| POST   | `/api/dropbox/disconnect`   | Remove the stored connection             |
 
 ## Roadmap ideas
 

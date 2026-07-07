@@ -3,9 +3,10 @@
 // trip's location.
 //
 // Setup: create a Dropbox app at https://www.dropbox.com/developers/apps with
-// the files.metadata.read and files.content.read scopes, generate an access
-// token, and set DROPBOX_ACCESS_TOKEN in .env.local.
+// the files.metadata.read and files.content.read scopes, set DROPBOX_APP_KEY
+// in .env.local, and click "Connect Dropbox" in the app's Settings page.
 
+import { dropboxConnected, getAccessToken } from "./dropbox-auth";
 import type { MatchedPhoto, Trip } from "./types";
 
 // Overridable so tests can point at a mock server.
@@ -19,7 +20,7 @@ const MATCH_RADIUS_KM = Number(process.env.PHOTO_MATCH_RADIUS_KM ?? "100");
 const MAX_ENTRIES = 10_000;
 
 export function dropboxConfigured(): boolean {
-  return Boolean(process.env.DROPBOX_ACCESS_TOKEN);
+  return dropboxConnected();
 }
 
 interface DropboxFileEntry {
@@ -38,10 +39,11 @@ interface DropboxFileEntry {
 }
 
 async function dropboxRpc<T>(endpoint: string, body: unknown): Promise<T> {
+  const token = await getAccessToken();
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.DROPBOX_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -141,10 +143,11 @@ export async function getThumbnail(
   path: string,
   size: "w640h480" | "w2048h1536" = "w640h480"
 ): Promise<ArrayBuffer> {
+  const token = await getAccessToken();
   const res = await fetch(`${CONTENT_BASE}/files/get_thumbnail_v2`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.DROPBOX_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Dropbox-API-Arg": JSON.stringify({
         resource: { ".tag": "path", path },
         format: { ".tag": "jpeg" },

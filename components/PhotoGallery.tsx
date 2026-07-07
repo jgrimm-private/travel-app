@@ -34,10 +34,12 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
           📷 Connect Dropbox to see photos from this trip
         </p>
         <p>
-          Set <code className="font-mono text-xs">DROPBOX_ACCESS_TOKEN</code> in{" "}
-          <code className="font-mono text-xs">.env.local</code> and photos taken during these
-          dates (and near this location) will show up here automatically. See the README for
-          setup steps.
+          Photos taken during these dates (and near this location) will show up here
+          automatically.{" "}
+          <a href="/settings" className="underline">
+            Connect Dropbox in Settings
+          </a>{" "}
+          — it&apos;s a one-time setup.
         </p>
       </div>
     );

@@ -28,7 +28,24 @@ Dev mode (`npm run dev`) works too but `npm start` is more stable for driving.
 
 ## Testing Dropbox photo matching without real Dropbox
 
-`lib/dropbox.ts` honors `DROPBOX_API_BASE` / `DROPBOX_CONTENT_BASE` overrides.
+`lib/dropbox.ts` honors `DROPBOX_API_BASE` / `DROPBOX_CONTENT_BASE` overrides,
+and `lib/dropbox-auth.ts` adds `DROPBOX_OAUTH_BASE` / `DROPBOX_WEB_BASE` for
+the OAuth flow. To test the full connect-once flow, the mock must also serve:
+
+- `GET /oauth2/authorize` → 302 back to the `redirect_uri` with
+  `code` + `state` (simulates the user approving)
+- `POST /oauth2/token` → `authorization_code` grant returns
+  `{access_token, refresh_token, expires_in}`; `refresh_token` grant returns
+  a new access token (count these to assert caching/refresh behavior)
+- `POST /2/users/get_current_account` → `{name:{display_name}, email}`
+
+Run with `DROPBOX_APP_KEY=test` plus all four base overrides pointing at the
+mock and NO `DROPBOX_ACCESS_TOKEN`. Drive the browser: /settings → click
+"Connect Dropbox" → should land on `/settings?dropbox=connected`. Then
+restart the server and hit `/api/trips/1/photos` — it must succeed via one
+refresh-token call (proves the connection survives restarts). Callback
+probes: tampered `state`, missing cookie → `?dropbox=error`;
+`?error=access_denied` → `?dropbox=denied`.
 Run a local mock that serves `/files/list_folder` (entries with
 `media_info.metadata.time_taken` + optional `location`) and
 `/files/get_thumbnail_v2` (any JPEG bytes), then:

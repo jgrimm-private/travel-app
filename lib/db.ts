@@ -24,8 +24,54 @@ function getDb(): Database.Database {
       notes TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS dropbox_auth (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      refresh_token TEXT NOT NULL,
+      account_name TEXT,
+      account_email TEXT,
+      connected_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   return db;
+}
+
+export interface DropboxAuth {
+  refresh_token: string;
+  account_name: string | null;
+  account_email: string | null;
+  connected_at: string;
+}
+
+export function getDropboxAuth(): DropboxAuth | undefined {
+  return getDb()
+    .prepare("SELECT refresh_token, account_name, account_email, connected_at FROM dropbox_auth WHERE id = 1")
+    .get() as DropboxAuth | undefined;
+}
+
+export function saveDropboxAuth(auth: {
+  refresh_token: string;
+  account_name?: string | null;
+  account_email?: string | null;
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO dropbox_auth (id, refresh_token, account_name, account_email, connected_at)
+       VALUES (1, @refresh_token, @account_name, @account_email, datetime('now'))
+       ON CONFLICT(id) DO UPDATE SET
+         refresh_token = @refresh_token,
+         account_name = @account_name,
+         account_email = @account_email,
+         connected_at = datetime('now')`
+    )
+    .run({
+      refresh_token: auth.refresh_token,
+      account_name: auth.account_name ?? null,
+      account_email: auth.account_email ?? null,
+    });
+}
+
+export function clearDropboxAuth(): void {
+  getDb().prepare("DELETE FROM dropbox_auth WHERE id = 1").run();
 }
 
 export function listTrips(): Trip[] {
