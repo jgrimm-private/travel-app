@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trips",
+  title: "Misty and Jon's Adventures!",
   description: "Track your travels — dates, places, and the photos that go with them.",
 };
 
@@ -40,7 +40,7 @@ export default async function RootLayout({
         <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur sticky top-0 z-10">
           <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
             <Link href="/" className="font-semibold text-lg tracking-tight">
-              ✈️ Trips
+              ✈️ Misty and Jon&apos;s Adventures!
             </Link>
             {authed && (
               <div className="flex items-center gap-3">

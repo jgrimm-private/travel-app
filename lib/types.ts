@@ -29,6 +29,17 @@ export interface MatchedPhoto {
   matched_by: PhotoMatchReason;
 }
 
+export interface TripPhotoResults {
+  /** Matched by a real EXIF/capture date (and GPS radius, when available). */
+  confirmed: MatchedPhoto[];
+  /** Date fell in range, but only via Dropbox's file-modified timestamp —
+   * not a real capture date, so shown separately instead of auto-included. */
+  maybe: MatchedPhoto[];
+  /** Matched the date range but look like screenshots/saved images; hidden
+   * by default, restorable via the photo overrides API. */
+  hiddenScreenshots: MatchedPhoto[];
+}
+
 export function tripDurationDays(trip: Pick<Trip, "start_date" | "end_date">): number {
   const start = new Date(trip.start_date + "T00:00:00Z").getTime();
   const end = new Date(trip.end_date + "T00:00:00Z").getTime();

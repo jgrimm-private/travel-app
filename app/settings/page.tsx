@@ -1,4 +1,5 @@
 import DisconnectDropboxButton from "@/components/DisconnectDropboxButton";
+import ScanForTripsButton from "@/components/ScanForTripsButton";
 import { connectionStatus } from "@/lib/dropbox-auth";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,13 @@ export default async function SettingsPage({
           <div className="text-sm space-y-3">
             <p className="text-zinc-600 dark:text-zinc-300">Not connected.</p>
             <ConnectButton disabled={!status.app_key_configured} />
+          </div>
+        )}
+
+        {status.connected && (
+          <div className="mt-5 border-t border-zinc-200 dark:border-zinc-800 pt-5">
+            <h3 className="font-medium mb-1">Discover trips automatically</h3>
+            <ScanForTripsButton />
           </div>
         )}
 

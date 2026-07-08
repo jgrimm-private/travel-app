@@ -17,9 +17,9 @@ export default function HomePage() {
     return (
       <div className="text-center py-24">
         <p className="text-5xl mb-4">🌍</p>
-        <h1 className="text-xl font-semibold mb-2">No trips yet</h1>
+        <h1 className="text-xl font-semibold mb-2">Misty and Jon&apos;s Adventures!</h1>
         <p className="text-zinc-500 dark:text-zinc-400 mb-6">
-          Add your first trip and start building your travel history.
+          No trips yet — add your first trip and start building your travel history.
         </p>
         <Link
           href="/trips/new"
@@ -34,7 +34,8 @@ export default function HomePage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-6">
-        Your trips <span className="text-zinc-400 text-lg font-normal">({trips.length})</span>
+        Misty and Jon&apos;s Adventures!{" "}
+        <span className="text-zinc-400 text-lg font-normal">({trips.length})</span>
       </h1>
       <ul className="grid gap-4 sm:grid-cols-2">
         {trips.map((trip) => {

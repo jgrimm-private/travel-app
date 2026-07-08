@@ -31,6 +31,11 @@ function getDb(): Database.Database {
       account_email TEXT,
       connected_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS photo_overrides (
+      path TEXT PRIMARY KEY,
+      status TEXT NOT NULL CHECK (status IN ('ignored', 'included')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   return db;
 }
@@ -129,4 +134,29 @@ export function updateTrip(
 
 export function deleteTrip(id: number): boolean {
   return getDb().prepare("DELETE FROM trips WHERE id = ?").run(id).changes > 0;
+}
+
+export type PhotoOverrideStatus = "ignored" | "included";
+
+/** Manual photo hide/restore decisions, keyed by Dropbox path (lowercased). */
+export function getPhotoOverrides(): Map<string, PhotoOverrideStatus> {
+  const rows = getDb().prepare("SELECT path, status FROM photo_overrides").all() as Array<{
+    path: string;
+    status: PhotoOverrideStatus;
+  }>;
+  return new Map(rows.map((r) => [r.path, r.status]));
+}
+
+export function setPhotoOverride(path: string, status: PhotoOverrideStatus): void {
+  getDb()
+    .prepare(
+      `INSERT INTO photo_overrides (path, status, created_at)
+       VALUES (@path, @status, datetime('now'))
+       ON CONFLICT(path) DO UPDATE SET status = @status, created_at = datetime('now')`
+    )
+    .run({ path, status });
+}
+
+export function clearPhotoOverride(path: string): void {
+  getDb().prepare("DELETE FROM photo_overrides WHERE path = ?").run(path);
 }

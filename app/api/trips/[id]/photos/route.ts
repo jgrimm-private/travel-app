@@ -10,14 +10,20 @@ export async function GET(_request: Request, ctx: Ctx) {
   if (!trip) return NextResponse.json({ error: "trip not found" }, { status: 404 });
 
   if (!dropboxConfigured()) {
-    return NextResponse.json({ configured: false, photos: [] });
+    return NextResponse.json({ configured: false, confirmed: [], maybe: [], hiddenScreenshots: [] });
   }
   try {
-    const photos = await findTripPhotos(trip);
-    return NextResponse.json({ configured: true, photos });
+    const results = await findTripPhotos(trip);
+    return NextResponse.json({ configured: true, ...results });
   } catch (err) {
     return NextResponse.json(
-      { configured: true, photos: [], error: err instanceof Error ? err.message : "Dropbox error" },
+      {
+        configured: true,
+        confirmed: [],
+        maybe: [],
+        hiddenScreenshots: [],
+        error: err instanceof Error ? err.message : "Dropbox error",
+      },
       { status: 502 }
     );
   }

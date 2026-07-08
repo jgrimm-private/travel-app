@@ -14,7 +14,20 @@ was to the trip's location.
 - **Dropbox photo matching** — for each trip, the app scans your Dropbox for
   photos taken during the trip's dates. Photos with GPS metadata must also be
   within `PHOTO_MATCH_RADIUS_KM` (default 100 km) of the trip location; photos
-  without GPS still match by date. Click any photo for a full-size view.
+  without GPS still match by date. Click any photo for a full-size view. Only a
+  photo's real EXIF capture date counts as a confirmed match — photos with no
+  capture date (only Dropbox's file-modified timestamp) show up in a separate
+  "possible matches" section instead of being silently included, and likely
+  screenshots (by filename or a media-less PNG) are hidden by default. Hide or
+  restore any individual photo from a trip's gallery at any time.
+- **Auto-discover trips** — a "Scan Dropbox for new trips" button (Settings)
+  walks your whole Dropbox, groups GPS-tagged photos taken away from home into
+  trip-shaped clusters (a gap of `TRIP_DISCOVERY_GAP_DAYS`, default 4, without
+  an away photo starts a new trip; groups need at least
+  `TRIP_DISCOVERY_MIN_PHOTOS`, default 3, photos), reverse-geocodes each one,
+  and creates a Trip automatically. "Home" locations are configured in
+  `lib/home-zones.ts` (currently Westerville, OH and Charlotte, NC, 100mi
+  radius via `HOME_ZONE_RADIUS_MILES`) and are always skipped.
 - **Local-first storage** — trips live in a SQLite database in `data/`, no
   external services required for the core tracker.
 
@@ -90,8 +103,10 @@ fallback, but those tokens expire after a few hours.
 | GET    | `/api/trips/:id`            | Get one trip                             |
 | PUT    | `/api/trips/:id`            | Update trip                              |
 | DELETE | `/api/trips/:id`            | Delete trip                              |
-| GET    | `/api/trips/:id/photos`     | Dropbox photos matched to the trip       |
+| GET    | `/api/trips/:id/photos`     | Dropbox photos matched to the trip (confirmed / maybe / hiddenScreenshots) |
 | GET    | `/api/photos/thumbnail`     | Proxy a Dropbox photo thumbnail          |
+| POST   | `/api/photos/ignore`        | Hide/restore a photo (`{path, status}`, status = `ignored`\|`included`\|`reset`) |
+| POST   | `/api/discover`             | Scan Dropbox and auto-create trips from photo clusters away from home |
 | GET    | `/api/dropbox/connect`      | Start the Dropbox OAuth flow (PKCE)      |
 | GET    | `/api/dropbox/callback`     | OAuth redirect target; stores the token  |
 | GET    | `/api/dropbox/status`       | Connection status                        |
@@ -107,7 +122,5 @@ All routes except `/login` and `/api/auth/login` require a session when
 - **Email import** — parse booking confirmations (Expedia, Airbnb, airlines)
   from Gmail to create trips automatically, TripIt-style.
 - **Map view** — pins for every trip on a world map.
-- **Auto-detected trips** — cluster Dropbox photos by time and place to
-  suggest trips you never entered.
 - **Stats** — countries visited, days traveled per year, total miles flown.
 - **Shared trips** — two-person household mode.
