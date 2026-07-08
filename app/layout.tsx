@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import Link from "next/link";
+import LogoutButton from "@/components/LogoutButton";
+import { authEnabled, SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,11 +21,16 @@ export const metadata: Metadata = {
   description: "Track your travels — dates, places, and the photos that go with them.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const authed =
+    !authEnabled() ||
+    (await verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value));
+  const showLogout = authEnabled() && authed;
+
   return (
     <html
       lang="en"
@@ -34,20 +42,23 @@ export default function RootLayout({
             <Link href="/" className="font-semibold text-lg tracking-tight">
               ✈️ Trips
             </Link>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/settings"
-                className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-              >
-                ⚙️ Settings
-              </Link>
-              <Link
-                href="/trips/new"
-                className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm font-medium hover:opacity-85 transition-opacity"
-              >
-                + Add trip
-              </Link>
-            </div>
+            {authed && (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/settings"
+                  className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  ⚙️ Settings
+                </Link>
+                <Link
+                  href="/trips/new"
+                  className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm font-medium hover:opacity-85 transition-opacity"
+                >
+                  + Add trip
+                </Link>
+                {showLogout && <LogoutButton />}
+              </div>
+            )}
           </div>
         </header>
         <main className="mx-auto w-full max-w-4xl px-4 py-8 flex-1">{children}</main>

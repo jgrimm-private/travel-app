@@ -62,3 +62,13 @@ or out of range → excluded; non-image extensions filtered.
 
 Trip coords fixture (geocoding blocked): set directly —
 `node -e "require('better-sqlite3')('data/travel.db').prepare('UPDATE trips SET lat=38.72,lng=-9.14 WHERE id=1').run()"`
+
+## Testing auth
+
+Auth (proxy.ts + /api/auth/*) activates only when AUTH_PASSWORD is set:
+`AUTH_PASSWORD=swordfish npm start`. Assert: unauthed page → 307 to
+`/login?from=<path>`; unauthed API → 401 JSON; wrong password → 401 (~500ms
+delay); right password → `session` cookie, deep link honored after login;
+`/login` while authed → 307 to `/`; tampered/expired cookie → 401; logout
+kills the session. Without AUTH_PASSWORD everything must stay open (200s).
+The login form password field is `#password`; errors are `p[role="alert"]`.

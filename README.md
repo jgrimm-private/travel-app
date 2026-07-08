@@ -27,6 +27,31 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and add your first trip.
 
+## Login (required for public hosting)
+
+Set `AUTH_PASSWORD` in `.env.local` (or in your host's environment variables)
+and the whole app — every page and API route — sits behind a login screen.
+Sessions last 30 days via a signed httpOnly cookie; use **Log out** in the
+header to end one early. Optionally set `AUTH_SECRET` to a long random string
+so changing the password doesn't log everyone out.
+
+With `AUTH_PASSWORD` unset the app runs open, which is fine on localhost.
+
+## Deploying to Vercel
+
+The app deploys to Vercel as-is with two caveats:
+
+1. **Set `AUTH_PASSWORD`** (and ideally `AUTH_SECRET`) in the Vercel project's
+   environment variables — never deploy this publicly without it.
+2. **SQLite doesn't persist on Vercel.** Serverless filesystems are ephemeral,
+   so trips and the Dropbox connection would vanish between deploys/restarts.
+   Before going live, the data layer needs a hosted database — Turso is the
+   near-drop-in choice for this SQLite schema (planned as its own milestone).
+   Until then, treat Vercel deploys as previews.
+
+Also update your Dropbox app's redirect URI to
+`https://your-app.vercel.app/api/dropbox/callback` when you deploy.
+
 ## Connecting Dropbox (optional, but the fun part)
 
 One-time setup — after this the app stays connected permanently via a
@@ -71,6 +96,11 @@ fallback, but those tokens expire after a few hours.
 | GET    | `/api/dropbox/callback`     | OAuth redirect target; stores the token  |
 | GET    | `/api/dropbox/status`       | Connection status                        |
 | POST   | `/api/dropbox/disconnect`   | Remove the stored connection             |
+| POST   | `/api/auth/login`           | Password login; sets the session cookie  |
+| POST   | `/api/auth/logout`          | Clear the session cookie                 |
+
+All routes except `/login` and `/api/auth/login` require a session when
+`AUTH_PASSWORD` is set (enforced in `proxy.ts`).
 
 ## Roadmap ideas
 
