@@ -11,6 +11,11 @@ interface PhotosResponse {
   error?: string;
 }
 
+interface LightboxState {
+  list: MatchedPhoto[];
+  index: number;
+}
+
 async function setPhotoStatus(path: string, status: "ignored" | "included" | "reset") {
   await fetch("/api/photos/ignore", {
     method: "POST",
@@ -19,10 +24,21 @@ async function setPhotoStatus(path: string, status: "ignored" | "included" | "re
   });
 }
 
+/** Inlines each photo's duplicates right after it, so a slideshow can page
+ * through every shot (originals and near-duplicates alike) in order. */
+function flatten(photos: MatchedPhoto[]): MatchedPhoto[] {
+  const out: MatchedPhoto[] = [];
+  for (const photo of photos) {
+    out.push(photo);
+    if (photo.duplicates) out.push(...photo.duplicates);
+  }
+  return out;
+}
+
 export default function PhotoGallery({ tripId }: { tripId: number }) {
   const [data, setData] = useState<PhotosResponse | null>(null);
   const [failed, setFailed] = useState(false);
-  const [lightbox, setLightbox] = useState<MatchedPhoto | null>(null);
+  const [lightbox, setLightbox] = useState<LightboxState | null>(null);
   const [showMaybe, setShowMaybe] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
 
@@ -34,6 +50,32 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
   };
 
   useEffect(load, [tripId]);
+
+  const openLightbox = (section: MatchedPhoto[], photo: MatchedPhoto) => {
+    const list = flatten(section);
+    const index = Math.max(
+      list.findIndex((p) => p.path === photo.path),
+      0
+    );
+    setLightbox({ list, index });
+  };
+
+  useEffect(() => {
+    if (!lightbox) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowRight" || e.key === " ") {
+        e.preventDefault();
+        setLightbox((prev) => prev && { ...prev, index: Math.min(prev.index + 1, prev.list.length - 1) });
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setLightbox((prev) => prev && { ...prev, index: Math.max(prev.index - 1, 0) });
+      } else if (e.key === "Escape") {
+        setLightbox(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [lightbox !== null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hidePhoto = async (path: string) => {
     setLightbox(null);
@@ -82,12 +124,18 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
     );
   }
 
+  const lightboxPhoto = lightbox?.list[lightbox.index];
+
   return (
     <>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
         {data.confirmed.length} photo{data.confirmed.length === 1 ? "" : "s"} matched from Dropbox
       </p>
-      <PhotoGrid photos={data.confirmed} onSelect={setLightbox} onHide={hidePhoto} />
+      <PhotoGrid
+        photos={data.confirmed}
+        onSelect={(photo) => openLightbox(data.confirmed, photo)}
+        onHide={hidePhoto}
+      />
 
       {data.maybe.length > 0 && (
         <div className="mt-6">
@@ -105,7 +153,11 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
                 These only matched by Dropbox&apos;s file-modified date, not the photo&apos;s
                 actual capture date — double check before trusting them.
               </p>
-              <PhotoGrid photos={data.maybe} onSelect={setLightbox} onHide={hidePhoto} />
+              <PhotoGrid
+                photos={data.maybe}
+                onSelect={(photo) => openLightbox(data.maybe, photo)}
+                onHide={hidePhoto}
+              />
             </div>
           )}
         </div>
@@ -127,7 +179,7 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
                 <li key={photo.path} className="relative">
                   <button
                     type="button"
-                    onClick={() => setLightbox(photo)}
+                    onClick={() => openLightbox(data.hiddenScreenshots, photo)}
                     className="block w-full aspect-square overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800 opacity-60 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                     title={photo.name}
                   >
@@ -154,30 +206,64 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
         </div>
       )}
 
-      {lightbox && (
+      {lightbox && lightboxPhoto && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={() => setLightbox(null)}
           role="dialog"
-          aria-label={lightbox.name}
+          aria-label={lightboxPhoto.name}
         >
+          {lightbox.index > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox({ ...lightbox, index: lightbox.index - 1 });
+              }}
+              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 hover:bg-white/20 text-white w-10 h-10 flex items-center justify-center text-2xl"
+              aria-label="Previous photo"
+            >
+              ‹
+            </button>
+          )}
+
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/api/photos/thumbnail?path=${encodeURIComponent(lightbox.path)}&size=large`}
-            alt={lightbox.name}
-            className="max-h-full max-w-full rounded-lg shadow-2xl"
+            src={`/api/photos/thumbnail?path=${encodeURIComponent(lightboxPhoto.path)}&size=large`}
+            alt={lightboxPhoto.name}
+            className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              hidePhoto(lightbox.path);
-            }}
-            className="absolute top-4 right-4 rounded-md bg-white/90 dark:bg-zinc-900/90 px-3 py-1.5 text-sm font-medium hover:opacity-90"
+
+          {lightbox.index < lightbox.list.length - 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox({ ...lightbox, index: lightbox.index + 1 });
+              }}
+              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 hover:bg-white/20 text-white w-10 h-10 flex items-center justify-center text-2xl"
+              aria-label="Next photo"
+            >
+              ›
+            </button>
+          )}
+
+          <div
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
           >
-            🚫 Not part of this trip
-          </button>
+            <span className="text-white/70 text-xs">
+              {lightbox.index + 1} / {lightbox.list.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => hidePhoto(lightboxPhoto.path)}
+              className="rounded-md bg-white/90 dark:bg-zinc-900/90 px-3 py-1.5 text-sm font-medium hover:opacity-90"
+            >
+              🚫 Not part of this trip
+            </button>
+          </div>
         </div>
       )}
     </>
@@ -212,6 +298,14 @@ function PhotoGrid({
               className="h-full w-full object-cover group-hover:scale-105 transition-transform"
             />
           </button>
+          {photo.duplicates && photo.duplicates.length > 0 && (
+            <span
+              className="absolute bottom-1 left-1 rounded-md bg-black/70 text-white text-xs px-1.5 py-0.5 pointer-events-none"
+              title={`${photo.duplicates.length} similar shot${photo.duplicates.length === 1 ? "" : "s"} taken around the same time/place — click to browse`}
+            >
+              +{photo.duplicates.length}
+            </span>
+          )}
           <button
             type="button"
             onClick={(e) => {

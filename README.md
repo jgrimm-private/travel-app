@@ -19,7 +19,12 @@ was to the trip's location.
   capture date (only Dropbox's file-modified timestamp) show up in a separate
   "possible matches" section instead of being silently included, and likely
   screenshots (by filename or a media-less PNG) are hidden by default. Hide or
-  restore any individual photo from a trip's gallery at any time.
+  restore any individual photo from a trip's gallery at any time. Photos taken
+  within `PHOTO_DUPLICATE_WINDOW_SECONDS` (default 15) and
+  `PHOTO_DUPLICATE_RADIUS_METERS` (default 50) of each other — e.g. you and a
+  travel partner both snapping the same moment on separate phones — are
+  collapsed into one thumbnail with a "+N" badge; click it to pick which shot
+  to keep.
 - **Auto-discover trips** — a "Scan Dropbox for new trips" button (Settings)
   walks your whole Dropbox, groups GPS-tagged photos taken away from home into
   trip-shaped clusters (a gap of `TRIP_DISCOVERY_GAP_DAYS`, default 4, without

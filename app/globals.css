@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf7f2;
+  --foreground: #1c1917;
 }
 
 @theme inline {
@@ -14,13 +14,46 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b0f19;
+    --foreground: #f2efe9;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Soft ambient glow behind the whole app — subtle, not a splash page. */
+.app-backdrop {
+  background-image:
+    radial-gradient(circle at 12% -10%, rgba(244, 114, 182, 0.16), transparent 45%),
+    radial-gradient(circle at 88% 0%, rgba(56, 189, 248, 0.14), transparent 40%),
+    radial-gradient(circle at 50% 110%, rgba(251, 191, 36, 0.1), transparent 45%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-backdrop {
+    background-image:
+      radial-gradient(circle at 12% -10%, rgba(244, 114, 182, 0.12), transparent 45%),
+      radial-gradient(circle at 88% 0%, rgba(56, 189, 248, 0.14), transparent 40%),
+      radial-gradient(circle at 50% 110%, rgba(139, 92, 246, 0.1), transparent 45%);
+  }
+}
+
+.gradient-text {
+  background-image: linear-gradient(90deg, #f59e0b, #f43f5e, #8b5cf6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Deterministic postcard-banner gradients for trip cards (picked by hashing
+   the trip's location, so the same trip always gets the same look). */
+.card-gradient-0 { background-image: linear-gradient(135deg, #0ea5e9, #6366f1); }
+.card-gradient-1 { background-image: linear-gradient(135deg, #f59e0b, #ef4444); }
+.card-gradient-2 { background-image: linear-gradient(135deg, #10b981, #0ea5e9); }
+.card-gradient-3 { background-image: linear-gradient(135deg, #a855f7, #ec4899); }
+.card-gradient-4 { background-image: linear-gradient(135deg, #f97316, #eab308); }
+.card-gradient-5 { background-image: linear-gradient(135deg, #14b8a6, #7c3aed); }

@@ -8,6 +8,7 @@
 
 import { getPhotoOverrides } from "./db";
 import { dropboxConnected, getAccessToken } from "./dropbox-auth";
+import { groupNearDuplicates } from "./duplicates";
 import { haversineKm } from "./geo";
 import { isLikelyScreenshot } from "./photo-filters";
 import type { MatchedPhoto, Trip, TripPhotoResults } from "./types";
@@ -282,7 +283,7 @@ export async function findTripPhotos(trip: Trip): Promise<TripPhotoResults> {
   confirmed.sort((a, b) => a.taken_at.localeCompare(b.taken_at));
   maybe.sort((a, b) => a.taken_at.localeCompare(b.taken_at));
   hiddenScreenshots.sort((a, b) => a.taken_at.localeCompare(b.taken_at));
-  return { confirmed, maybe, hiddenScreenshots };
+  return { confirmed: groupNearDuplicates(confirmed), maybe, hiddenScreenshots };
 }
 
 /** Fetch a JPEG thumbnail for a Dropbox file. */

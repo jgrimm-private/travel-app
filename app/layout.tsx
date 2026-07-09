@@ -36,23 +36,26 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-        <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur sticky top-0 z-10">
-          <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="font-semibold text-lg tracking-tight">
-              ✈️ Misty and Jon&apos;s Adventures!
+      <body className="app-backdrop min-h-full flex flex-col text-zinc-900 dark:text-zinc-100">
+        <header className="border-b border-zinc-900/5 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 backdrop-blur-md sticky top-0 z-10">
+          <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+            <Link href="/" className="group flex items-center gap-2.5 font-semibold text-lg tracking-tight">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 via-rose-500 to-violet-500 text-base shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform">
+                ✈️
+              </span>
+              <span>Adventures</span>
             </Link>
             {authed && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Link
                   href="/settings"
-                  className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                  className="rounded-lg px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-900/5 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/10 transition-colors"
                 >
                   ⚙️ Settings
                 </Link>
                 <Link
                   href="/trips/new"
-                  className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm font-medium hover:opacity-85 transition-opacity"
+                  className="rounded-lg bg-gradient-to-r from-amber-500 via-rose-500 to-violet-500 text-white px-3.5 py-1.5 text-sm font-medium shadow-sm shadow-rose-500/30 hover:shadow-md hover:shadow-rose-500/40 hover:brightness-105 transition-all"
                 >
                   + Add trip
                 </Link>
@@ -61,7 +64,7 @@ export default async function RootLayout({
             )}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-4xl px-4 py-8 flex-1">{children}</main>
+        <main className="mx-auto w-full max-w-5xl px-4 py-10 flex-1">{children}</main>
       </body>
     </html>
   );

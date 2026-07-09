@@ -27,6 +27,10 @@ export interface MatchedPhoto {
   lat: number | null;
   lng: number | null;
   matched_by: PhotoMatchReason;
+  /** Other photos taken within a few seconds/meters of this one — e.g. you
+   * and a travel partner both snapping the same moment on separate phones.
+   * Collapsed under this representative photo instead of shown separately. */
+  duplicates?: MatchedPhoto[];
 }
 
 export interface TripPhotoResults {
