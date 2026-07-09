@@ -5,7 +5,19 @@ import { authEnabled, SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 const PUBLIC_PATHS = new Set(["/login", "/api/auth/login"]);
 
 export async function proxy(request: NextRequest) {
-  if (!authEnabled()) return NextResponse.next();
+  if (!authEnabled()) {
+    // Fail closed on Vercel: never let a hosted deployment run wide open.
+    // Locally (no VERCEL env) the app stays usable without a password.
+    if (process.env.VERCEL) {
+      return new NextResponse(
+        "This deployment has no AUTH_PASSWORD configured. Set AUTH_PASSWORD " +
+          "(and AUTH_SECRET) in the Vercel project's environment variables, " +
+          "then redeploy.",
+        { status: 503, headers: { "Content-Type": "text/plain" } }
+      );
+    }
+    return NextResponse.next();
+  }
 
   const { pathname } = request.nextUrl;
   const authed = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);

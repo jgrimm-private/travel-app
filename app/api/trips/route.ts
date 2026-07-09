@@ -4,7 +4,7 @@ import { geocode } from "@/lib/geocode";
 import { validateTripInput } from "@/lib/validate";
 
 export async function GET() {
-  return NextResponse.json(listTrips());
+  return NextResponse.json(await listTrips());
 }
 
 export async function POST(request: Request) {
@@ -13,6 +13,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: input }, { status: 400 });
   }
   const coords = await geocode(input.location);
-  const trip = createTrip(input, coords);
+  const trip = await createTrip(input, coords);
   return NextResponse.json(trip, { status: 201 });
 }

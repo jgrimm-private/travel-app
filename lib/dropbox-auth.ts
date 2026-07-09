@@ -114,16 +114,16 @@ export async function fetchAccountInfo(
   }
 }
 
-export function completeConnection(args: {
+export async function completeConnection(args: {
   refresh_token: string;
   account_name: string | null;
   account_email: string | null;
-}): void {
-  saveDropboxAuth(args);
+}): Promise<void> {
+  await saveDropboxAuth(args);
 }
 
-export function disconnect(): void {
-  clearDropboxAuth();
+export async function disconnect(): Promise<void> {
+  await clearDropboxAuth();
   cached = null;
 }
 
@@ -136,8 +136,8 @@ export interface ConnectionStatus {
   app_key_configured: boolean;
 }
 
-export function connectionStatus(): ConnectionStatus {
-  const auth = getDropboxAuth();
+export async function connectionStatus(): Promise<ConnectionStatus> {
+  const auth = await getDropboxAuth();
   if (auth) {
     return {
       connected: true,
@@ -168,8 +168,8 @@ export function connectionStatus(): ConnectionStatus {
   };
 }
 
-export function dropboxConnected(): boolean {
-  return connectionStatus().connected;
+export async function dropboxConnected(): Promise<boolean> {
+  return (await connectionStatus()).connected;
 }
 
 /**
@@ -178,7 +178,7 @@ export function dropboxConnected(): boolean {
  * connection exists (legacy setup).
  */
 export async function getAccessToken(): Promise<string> {
-  const auth = getDropboxAuth();
+  const auth = await getDropboxAuth();
   if (!auth) {
     const envToken = process.env.DROPBOX_ACCESS_TOKEN;
     if (envToken) return envToken;

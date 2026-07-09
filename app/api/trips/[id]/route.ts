@@ -12,14 +12,14 @@ function parseId(raw: string): number | null {
 
 export async function GET(_request: Request, ctx: Ctx) {
   const id = parseId((await ctx.params).id);
-  const trip = id !== null ? getTrip(id) : undefined;
+  const trip = id !== null ? await getTrip(id) : undefined;
   if (!trip) return NextResponse.json({ error: "trip not found" }, { status: 404 });
   return NextResponse.json(trip);
 }
 
 export async function PUT(request: Request, ctx: Ctx) {
   const id = parseId((await ctx.params).id);
-  const existing = id !== null ? getTrip(id) : undefined;
+  const existing = id !== null ? await getTrip(id) : undefined;
   if (!existing || id === null) {
     return NextResponse.json({ error: "trip not found" }, { status: 404 });
   }
@@ -32,12 +32,12 @@ export async function PUT(request: Request, ctx: Ctx) {
     input.location === existing.location && existing.lat != null && existing.lng != null
       ? { lat: existing.lat, lng: existing.lng }
       : await geocode(input.location);
-  return NextResponse.json(updateTrip(id, input, coords));
+  return NextResponse.json(await updateTrip(id, input, coords));
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
   const id = parseId((await ctx.params).id);
-  if (id === null || !deleteTrip(id)) {
+  if (id === null || !(await deleteTrip(id))) {
     return NextResponse.json({ error: "trip not found" }, { status: 404 });
   }
   return new NextResponse(null, { status: 204 });

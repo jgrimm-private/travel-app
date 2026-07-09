@@ -16,9 +16,9 @@ export async function POST(request: Request) {
   }
 
   if (status === "reset") {
-    clearPhotoOverride(path);
+    await clearPhotoOverride(path);
   } else {
-    setPhotoOverride(path, status as "ignored" | "included");
+    await setPhotoOverride(path, status as "ignored" | "included");
   }
   return NextResponse.json({ ok: true });
 }

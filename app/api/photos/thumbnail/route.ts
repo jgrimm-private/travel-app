@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { dropboxConfigured, getThumbnail } from "@/lib/dropbox";
 
 export async function GET(request: Request) {
-  if (!dropboxConfigured()) {
+  if (!(await dropboxConfigured())) {
     return NextResponse.json({ error: "Dropbox not configured" }, { status: 503 });
   }
   const url = new URL(request.url);

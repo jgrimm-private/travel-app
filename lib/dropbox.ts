@@ -22,7 +22,7 @@ const PHOTOS_PATH = process.env.DROPBOX_PHOTOS_PATH ?? "";
 const MATCH_RADIUS_KM = Number(process.env.PHOTO_MATCH_RADIUS_KM ?? "100");
 const MAX_ENTRIES = 10_000;
 
-export function dropboxConfigured(): boolean {
+export async function dropboxConfigured(): Promise<boolean> {
   return dropboxConnected();
 }
 
@@ -219,7 +219,7 @@ const CLIENT_MODIFIED_BUFFER_DAYS = 5;
  */
 export async function findTripPhotos(trip: Trip): Promise<TripPhotoResults> {
   const entries = await listAllPhotoEntries();
-  const overrides = getPhotoOverrides();
+  const overrides = await getPhotoOverrides();
   const rangeStart = `${trip.start_date}T00:00:00`;
   const rangeEnd = `${trip.end_date}T23:59:59`;
 

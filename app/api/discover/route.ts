@@ -3,7 +3,7 @@ import { discoverTrips } from "@/lib/discover";
 import { dropboxConfigured } from "@/lib/dropbox";
 
 export async function POST() {
-  if (!dropboxConfigured()) {
+  if (!(await dropboxConfigured())) {
     return NextResponse.json({ error: "Dropbox is not connected" }, { status: 400 });
   }
   try {

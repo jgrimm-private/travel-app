@@ -1,43 +1,59 @@
-import Database from "better-sqlite3";
+// Storage layer on libsql, so the same code runs everywhere:
+// - Local dev: a SQLite file in data/ (no setup needed)
+// - Vercel + Turso: set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN for persistence
+// - Vercel without Turso: falls back to /tmp — works, but data is ephemeral
+//   and vanishes on redeploy/idle, so treat that mode as a preview only.
+
+import { createClient, type Client } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
 import type { Trip, TripInput } from "./types";
 
-const DATA_DIR = process.env.TRAVEL_APP_DATA_DIR ?? path.join(process.cwd(), "data");
+function makeClient(): Client {
+  const url = process.env.TURSO_DATABASE_URL;
+  if (url) {
+    return createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
+  }
+  const dir =
+    process.env.TRAVEL_APP_DATA_DIR ??
+    (process.env.VERCEL ? "/tmp" : path.join(process.cwd(), "data"));
+  fs.mkdirSync(dir, { recursive: true });
+  return createClient({ url: `file:${path.join(dir, "travel.db")}` });
+}
 
-let db: Database.Database | null = null;
+let dbPromise: Promise<Client> | null = null;
 
-function getDb(): Database.Database {
-  if (db) return db;
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  db = new Database(path.join(DATA_DIR, "travel.db"));
-  db.pragma("journal_mode = WAL");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS trips (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      location TEXT NOT NULL,
-      lat REAL,
-      lng REAL,
-      start_date TEXT NOT NULL,
-      end_date TEXT NOT NULL,
-      notes TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS dropbox_auth (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      refresh_token TEXT NOT NULL,
-      account_name TEXT,
-      account_email TEXT,
-      connected_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS photo_overrides (
-      path TEXT PRIMARY KEY,
-      status TEXT NOT NULL CHECK (status IN ('ignored', 'included')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-  return db;
+function getDb(): Promise<Client> {
+  dbPromise ??= (async () => {
+    const client = makeClient();
+    await client.executeMultiple(`
+      CREATE TABLE IF NOT EXISTS trips (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        location TEXT NOT NULL,
+        lat REAL,
+        lng REAL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS dropbox_auth (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        refresh_token TEXT NOT NULL,
+        account_name TEXT,
+        account_email TEXT,
+        connected_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS photo_overrides (
+        path TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK (status IN ('ignored', 'included')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    return client;
+  })();
+  return dbPromise;
 }
 
 export interface DropboxAuth {
@@ -47,55 +63,62 @@ export interface DropboxAuth {
   connected_at: string;
 }
 
-export function getDropboxAuth(): DropboxAuth | undefined {
-  return getDb()
-    .prepare("SELECT refresh_token, account_name, account_email, connected_at FROM dropbox_auth WHERE id = 1")
-    .get() as DropboxAuth | undefined;
+export async function getDropboxAuth(): Promise<DropboxAuth | undefined> {
+  const db = await getDb();
+  const rs = await db.execute(
+    "SELECT refresh_token, account_name, account_email, connected_at FROM dropbox_auth WHERE id = 1"
+  );
+  return rs.rows[0] as unknown as DropboxAuth | undefined;
 }
 
-export function saveDropboxAuth(auth: {
+export async function saveDropboxAuth(auth: {
   refresh_token: string;
   account_name?: string | null;
   account_email?: string | null;
-}): void {
-  getDb()
-    .prepare(
-      `INSERT INTO dropbox_auth (id, refresh_token, account_name, account_email, connected_at)
-       VALUES (1, @refresh_token, @account_name, @account_email, datetime('now'))
-       ON CONFLICT(id) DO UPDATE SET
-         refresh_token = @refresh_token,
-         account_name = @account_name,
-         account_email = @account_email,
-         connected_at = datetime('now')`
-    )
-    .run({
+}): Promise<void> {
+  const db = await getDb();
+  await db.execute({
+    sql: `INSERT INTO dropbox_auth (id, refresh_token, account_name, account_email, connected_at)
+          VALUES (1, :refresh_token, :account_name, :account_email, datetime('now'))
+          ON CONFLICT(id) DO UPDATE SET
+            refresh_token = :refresh_token,
+            account_name = :account_name,
+            account_email = :account_email,
+            connected_at = datetime('now')`,
+    args: {
       refresh_token: auth.refresh_token,
       account_name: auth.account_name ?? null,
       account_email: auth.account_email ?? null,
-    });
+    },
+  });
 }
 
-export function clearDropboxAuth(): void {
-  getDb().prepare("DELETE FROM dropbox_auth WHERE id = 1").run();
+export async function clearDropboxAuth(): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM dropbox_auth WHERE id = 1");
 }
 
-export function listTrips(): Trip[] {
-  return getDb()
-    .prepare("SELECT * FROM trips ORDER BY start_date DESC, id DESC")
-    .all() as Trip[];
+export async function listTrips(): Promise<Trip[]> {
+  const db = await getDb();
+  const rs = await db.execute("SELECT * FROM trips ORDER BY start_date DESC, id DESC");
+  return rs.rows as unknown as Trip[];
 }
 
-export function getTrip(id: number): Trip | undefined {
-  return getDb().prepare("SELECT * FROM trips WHERE id = ?").get(id) as Trip | undefined;
+export async function getTrip(id: number): Promise<Trip | undefined> {
+  const db = await getDb();
+  const rs = await db.execute({ sql: "SELECT * FROM trips WHERE id = ?", args: [id] });
+  return rs.rows[0] as unknown as Trip | undefined;
 }
 
-export function createTrip(input: TripInput, coords: { lat: number; lng: number } | null): Trip {
-  const result = getDb()
-    .prepare(
-      `INSERT INTO trips (name, location, lat, lng, start_date, end_date, notes)
-       VALUES (@name, @location, @lat, @lng, @start_date, @end_date, @notes)`
-    )
-    .run({
+export async function createTrip(
+  input: TripInput,
+  coords: { lat: number; lng: number } | null
+): Promise<Trip> {
+  const db = await getDb();
+  const rs = await db.execute({
+    sql: `INSERT INTO trips (name, location, lat, lng, start_date, end_date, notes)
+          VALUES (:name, :location, :lat, :lng, :start_date, :end_date, :notes)`,
+    args: {
       name: input.name,
       location: input.location,
       lat: coords?.lat ?? null,
@@ -103,23 +126,23 @@ export function createTrip(input: TripInput, coords: { lat: number; lng: number 
       start_date: input.start_date,
       end_date: input.end_date,
       notes: input.notes ?? "",
-    });
-  return getTrip(Number(result.lastInsertRowid))!;
+    },
+  });
+  return (await getTrip(Number(rs.lastInsertRowid)))!;
 }
 
-export function updateTrip(
+export async function updateTrip(
   id: number,
   input: TripInput,
   coords: { lat: number; lng: number } | null
-): Trip | undefined {
-  getDb()
-    .prepare(
-      `UPDATE trips
-       SET name = @name, location = @location, lat = @lat, lng = @lng,
-           start_date = @start_date, end_date = @end_date, notes = @notes
-       WHERE id = @id`
-    )
-    .run({
+): Promise<Trip | undefined> {
+  const db = await getDb();
+  await db.execute({
+    sql: `UPDATE trips
+          SET name = :name, location = :location, lat = :lat, lng = :lng,
+              start_date = :start_date, end_date = :end_date, notes = :notes
+          WHERE id = :id`,
+    args: {
       id,
       name: input.name,
       location: input.location,
@@ -128,35 +151,42 @@ export function updateTrip(
       start_date: input.start_date,
       end_date: input.end_date,
       notes: input.notes ?? "",
-    });
+    },
+  });
   return getTrip(id);
 }
 
-export function deleteTrip(id: number): boolean {
-  return getDb().prepare("DELETE FROM trips WHERE id = ?").run(id).changes > 0;
+export async function deleteTrip(id: number): Promise<boolean> {
+  const db = await getDb();
+  const rs = await db.execute({ sql: "DELETE FROM trips WHERE id = ?", args: [id] });
+  return rs.rowsAffected > 0;
 }
 
 export type PhotoOverrideStatus = "ignored" | "included";
 
 /** Manual photo hide/restore decisions, keyed by Dropbox path (lowercased). */
-export function getPhotoOverrides(): Map<string, PhotoOverrideStatus> {
-  const rows = getDb().prepare("SELECT path, status FROM photo_overrides").all() as Array<{
-    path: string;
-    status: PhotoOverrideStatus;
-  }>;
-  return new Map(rows.map((r) => [r.path, r.status]));
+export async function getPhotoOverrides(): Promise<Map<string, PhotoOverrideStatus>> {
+  const db = await getDb();
+  const rs = await db.execute("SELECT path, status FROM photo_overrides");
+  return new Map(
+    rs.rows.map((r) => [r.path as string, r.status as PhotoOverrideStatus])
+  );
 }
 
-export function setPhotoOverride(path: string, status: PhotoOverrideStatus): void {
-  getDb()
-    .prepare(
-      `INSERT INTO photo_overrides (path, status, created_at)
-       VALUES (@path, @status, datetime('now'))
-       ON CONFLICT(path) DO UPDATE SET status = @status, created_at = datetime('now')`
-    )
-    .run({ path, status });
+export async function setPhotoOverride(
+  path: string,
+  status: PhotoOverrideStatus
+): Promise<void> {
+  const db = await getDb();
+  await db.execute({
+    sql: `INSERT INTO photo_overrides (path, status, created_at)
+          VALUES (:path, :status, datetime('now'))
+          ON CONFLICT(path) DO UPDATE SET status = :status, created_at = datetime('now')`,
+    args: { path, status },
+  });
 }
 
-export function clearPhotoOverride(path: string): void {
-  getDb().prepare("DELETE FROM photo_overrides WHERE path = ?").run(path);
+export async function clearPhotoOverride(path: string): Promise<void> {
+  const db = await getDb();
+  await db.execute({ sql: "DELETE FROM photo_overrides WHERE path = ?", args: [path] });
 }

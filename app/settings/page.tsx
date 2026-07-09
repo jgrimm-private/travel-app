@@ -24,7 +24,7 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ dropbox?: string }>;
 }) {
-  const status = connectionStatus();
+  const status = await connectionStatus();
   const banner = BANNERS[(await searchParams).dropbox ?? ""];
 
   return (

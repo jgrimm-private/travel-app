@@ -91,11 +91,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function discoverTrips(): Promise<DiscoverResult> {
-  const [entries, overrides, existingTrips] = [
-    await listAllPhotoEntries(),
-    getPhotoOverrides(),
-    listTrips(),
-  ];
+  const entries = await listAllPhotoEntries();
+  const overrides = await getPhotoOverrides();
+  const existingTrips = await listTrips();
 
   const stats: DiscoverStats = {
     scanned: entries.length,
@@ -182,7 +180,7 @@ export async function discoverTrips(): Promise<DiscoverResult> {
     const place = await reverseGeocode(cluster.representative.lat, cluster.representative.lng);
     const label = place?.label ?? `${cluster.representative.lat.toFixed(2)}, ${cluster.representative.lng.toFixed(2)}`;
 
-    const trip = createTrip(
+    const trip = await createTrip(
       {
         name: `${label} Trip`,
         location: label,

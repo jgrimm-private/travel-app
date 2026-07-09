@@ -10,8 +10,8 @@ const STATUS_STYLES: Record<string, string> = {
   past: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
-export default function HomePage() {
-  const trips = listTrips();
+export default async function HomePage() {
+  const trips = await listTrips();
 
   if (trips.length === 0) {
     return (

@@ -28,8 +28,9 @@ was to the trip's location.
   and creates a Trip automatically. "Home" locations are configured in
   `lib/home-zones.ts` (currently Westerville, OH and Charlotte, NC, 100mi
   radius via `HOME_ZONE_RADIUS_MILES`) and are always skipped.
-- **Local-first storage** — trips live in a SQLite database in `data/`, no
-  external services required for the core tracker.
+- **SQLite everywhere** — trips live in a local SQLite file in `data/` during
+  development (no setup needed) and in a hosted Turso database in production,
+  through the same libsql storage layer.
 
 ## Getting started
 
@@ -52,18 +53,19 @@ With `AUTH_PASSWORD` unset the app runs open, which is fine on localhost.
 
 ## Deploying to Vercel
 
-The app deploys to Vercel as-is with two caveats:
+After deploying, set these in the Vercel project's **Settings → Environment
+Variables** and redeploy:
 
-1. **Set `AUTH_PASSWORD`** (and ideally `AUTH_SECRET`) in the Vercel project's
-   environment variables — never deploy this publicly without it.
-2. **SQLite doesn't persist on Vercel.** Serverless filesystems are ephemeral,
-   so trips and the Dropbox connection would vanish between deploys/restarts.
-   Before going live, the data layer needs a hosted database — Turso is the
-   near-drop-in choice for this SQLite schema (planned as its own milestone).
-   Until then, treat Vercel deploys as previews.
-
-Also update your Dropbox app's redirect URI to
-`https://your-app.vercel.app/api/dropbox/callback` when you deploy.
+1. **`AUTH_PASSWORD`** (and ideally `AUTH_SECRET`) — required. A deployment
+   without `AUTH_PASSWORD` refuses every request with a 503 rather than
+   running wide open.
+2. **`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`** — sign up at
+   [turso.tech](https://turso.tech) (free tier), create a database, and copy
+   its URL and token. Without these the app still runs, but data lives in
+   `/tmp` and is wiped on every redeploy or idle spin-down.
+3. **`DROPBOX_APP_KEY`** — same key as local, and add
+   `https://your-app.vercel.app/api/dropbox/callback` as an additional OAuth 2
+   redirect URI in your Dropbox app's settings.
 
 ## Connecting Dropbox (optional, but the fun part)
 

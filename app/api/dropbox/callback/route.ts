@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       redirectUri: `${origin}/api/dropbox/callback`,
     });
     const account = await fetchAccountInfo(access_token);
-    completeConnection({
+    await completeConnection({
       refresh_token,
       account_name: account.name,
       account_email: account.email,

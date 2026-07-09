@@ -60,8 +60,9 @@ Matching rules to assert: in-date-range + GPS within PHOTO_MATCH_RADIUS_KM
 (default 100) → `date+location`; in-range without GPS → `date`; GPS too far
 or out of range → excluded; non-image extensions filtered.
 
-Trip coords fixture (geocoding blocked): set directly —
-`node -e "require('better-sqlite3')('data/travel.db').prepare('UPDATE trips SET lat=38.72,lng=-9.14 WHERE id=1').run()"`
+Trip coords fixture (geocoding blocked): set directly (storage is libsql;
+better-sqlite3 is gone) —
+`node -e "require('@libsql/client').createClient({url:'file:data/travel.db'}).execute('UPDATE trips SET lat=38.72,lng=-9.14 WHERE id=1')"`
 
 ## Testing auth
 

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function EditTripPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
-  const trip = Number.isInteger(id) ? getTrip(id) : undefined;
+  const trip = Number.isInteger(id) ? await getTrip(id) : undefined;
   if (!trip) notFound();
 
   return (

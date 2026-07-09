@@ -6,10 +6,10 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, ctx: Ctx) {
   const id = Number((await ctx.params).id);
-  const trip = Number.isInteger(id) ? getTrip(id) : undefined;
+  const trip = Number.isInteger(id) ? await getTrip(id) : undefined;
   if (!trip) return NextResponse.json({ error: "trip not found" }, { status: 404 });
 
-  if (!dropboxConfigured()) {
+  if (!(await dropboxConfigured())) {
     return NextResponse.json({ configured: false, confirmed: [], maybe: [], hiddenScreenshots: [] });
   }
   try {
