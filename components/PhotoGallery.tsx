@@ -92,7 +92,7 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
     return <p className="text-sm text-red-600 dark:text-red-400">Couldn’t load photos.</p>;
   }
   if (!data) {
-    return <p className="text-sm text-zinc-400 animate-pulse">Looking for photos in Dropbox…</p>;
+    return <LoadingPhotos />;
   }
   if (!data.configured) {
     return (
@@ -267,6 +267,43 @@ export default function PhotoGallery({ tripId }: { tripId: number }) {
         </div>
       )}
     </>
+  );
+}
+
+// Typical case (cache warm) is ~2-5s; a trip with lots of never-before-seen
+// photos can take up to ~15s (Dropbox has no bulk endpoint for capture
+// date/GPS, see lib/dropbox.ts). The message escalates so a long wait still
+// reads as "working", not "stuck".
+function loadingMessage(elapsed: number): string {
+  if (elapsed < 4) return "Loading photos…";
+  if (elapsed < 10) return "Fetching photo details from Dropbox…";
+  return "Almost there — large trips can take up to ~15s…";
+}
+
+function LoadingPhotos() {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 250);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="rounded-2xl border border-zinc-900/5 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-sm p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="h-4 w-4 rounded-full border-2 border-zinc-200 dark:border-zinc-700 border-t-rose-500 animate-spin shrink-0" />
+        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+          {loadingMessage(elapsed)}
+        </p>
+        <span className="ml-auto text-xs font-mono text-zinc-400 dark:text-zinc-500 tabular-nums">
+          {elapsed}s
+        </span>
+      </div>
+      <div className="relative h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+        <div className="indeterminate-bar absolute inset-y-0 left-0 w-1/3 rounded-full bg-gradient-to-r from-amber-400 via-rose-500 to-violet-500" />
+      </div>
+    </div>
   );
 }
 

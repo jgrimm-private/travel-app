@@ -57,3 +57,14 @@ body {
 .card-gradient-3 { background-image: linear-gradient(135deg, #a855f7, #ec4899); }
 .card-gradient-4 { background-image: linear-gradient(135deg, #f97316, #eab308); }
 .card-gradient-5 { background-image: linear-gradient(135deg, #14b8a6, #7c3aed); }
+
+/* Indeterminate progress bar — duration is unknown, so this just needs to
+   read as "actively working" rather than represent a real percentage. */
+@keyframes indeterminate-slide {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(150%); }
+  100% { transform: translateX(400%); }
+}
+.indeterminate-bar {
+  animation: indeterminate-slide 1.3s ease-in-out infinite;
+}
