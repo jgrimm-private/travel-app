@@ -6,10 +6,10 @@ import { tripDurationDays, type Trip } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+// "past" has no badge at all — obvious from the dates, no need to say it.
 const STATUS_STYLES: Record<string, string> = {
   upcoming: "bg-white/90 dark:bg-zinc-950/80 text-sky-700 dark:text-sky-300",
   ongoing: "bg-white/90 dark:bg-zinc-950/80 text-emerald-700 dark:text-emerald-300",
-  past: "bg-white/80 dark:bg-zinc-950/70 text-zinc-500 dark:text-zinc-400",
 };
 
 export default async function HomePage() {
@@ -88,14 +88,16 @@ function TripCard({ trip }: { trip: Trip }) {
       >
         <div className={`relative h-24 ${cardGradientClass(trip.location)}`}>
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
-          <span
-            className={`absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm flex items-center gap-1 ${STATUS_STYLES[status]}`}
-          >
-            {status === "ongoing" && (
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            )}
-            {status}
-          </span>
+          {status !== "past" && (
+            <span
+              className={`absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm flex items-center gap-1 ${STATUS_STYLES[status]}`}
+            >
+              {status === "ongoing" && (
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+              {status}
+            </span>
+          )}
           <h2 className="absolute bottom-2.5 left-4 right-4 font-semibold text-lg leading-tight text-white drop-shadow-sm truncate">
             {trip.name}
           </h2>
