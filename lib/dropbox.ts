@@ -6,7 +6,7 @@
 // the files.metadata.read and files.content.read scopes, set DROPBOX_APP_KEY
 // in .env.local, and click "Connect Dropbox" in the app's Settings page.
 
-import { getPhotoOverrides } from "./db";
+import { getCachedMediaInfo, getPhotoOverrides, setCachedMediaInfo, type MediaCacheEntry } from "./db";
 import { dropboxConnected, getAccessToken } from "./dropbox-auth";
 import { groupNearDuplicates } from "./duplicates";
 import { haversineKm } from "./geo";
@@ -169,10 +169,12 @@ const MEDIA_INFO_CONCURRENCY = Number(process.env.DROPBOX_MEDIA_INFO_CONCURRENCY
 /**
  * Fetches real capture-time/GPS metadata for a set of entries via per-file
  * /files/get_metadata calls (list_folder's include_media_info doesn't work —
- * see listAllPhotoEntries). One HTTP call per EXIF-capable file, so callers
- * should narrow the input down first where possible. Deliberately
- * throttled: for a full-library scan of a few thousand photos this can take
- * several minutes, which is expected.
+ * see listAllPhotoEntries). A photo's capture date/GPS never changes once
+ * taken, so results are cached in the database permanently — only entries
+ * never seen before (or a rare not-found retry, see NEGATIVE_CACHE_TTL_HOURS
+ * in lib/db.ts) actually hit Dropbox. That's what keeps repeat trip views
+ * fast; a full, never-before-seen library scan still takes a while since
+ * everything is a cache miss the first time.
  */
 export async function fetchMediaInfo(
   entries: DropboxFileEntry[]
@@ -181,18 +183,41 @@ export async function fetchMediaInfo(
   const candidates = entries.filter((e) => EXIF_CAPABLE_RE.test(e.name));
   if (candidates.length === 0) return result;
 
-  const token = await getAccessToken();
-  let cursor = 0;
-  async function worker() {
-    while (cursor < candidates.length) {
-      const entry = candidates[cursor++];
-      const info = await getMediaInfoWithRetry(entry.path_lower, token);
-      if (info) result.set(entry.path_lower, info);
+  const cached = await getCachedMediaInfo(candidates.map((e) => e.path_lower));
+  for (const [path, info] of cached) {
+    if (info) {
+      result.set(path, {
+        time_taken: info.time_taken ?? undefined,
+        location: info.lat != null && info.lng != null ? { latitude: info.lat, longitude: info.lng } : undefined,
+      });
     }
   }
-  await Promise.all(
-    Array.from({ length: Math.min(MEDIA_INFO_CONCURRENCY, candidates.length) }, worker)
-  );
+
+  const toFetch = candidates.filter((e) => !cached.has(e.path_lower));
+  if (toFetch.length > 0) {
+    const token = await getAccessToken();
+    const freshResults: MediaCacheEntry[] = [];
+    let cursor = 0;
+    async function worker() {
+      while (cursor < toFetch.length) {
+        const entry = toFetch[cursor++];
+        const info = await getMediaInfoWithRetry(entry.path_lower, token);
+        if (info) result.set(entry.path_lower, info);
+        freshResults.push({
+          path: entry.path_lower,
+          time_taken: info?.time_taken ?? null,
+          lat: info?.location?.latitude ?? null,
+          lng: info?.location?.longitude ?? null,
+          found: !!info,
+        });
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(MEDIA_INFO_CONCURRENCY, toFetch.length) }, worker)
+    );
+    await setCachedMediaInfo(freshResults);
+  }
+
   return result;
 }
 

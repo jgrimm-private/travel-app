@@ -50,6 +50,14 @@ function getDb(): Promise<Client> {
         status TEXT NOT NULL CHECK (status IN ('ignored', 'included')),
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS photo_media_cache (
+        path TEXT PRIMARY KEY,
+        time_taken TEXT,
+        lat REAL,
+        lng REAL,
+        found INTEGER NOT NULL,
+        checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `);
     return client;
   })();
@@ -189,4 +197,80 @@ export async function setPhotoOverride(
 export async function clearPhotoOverride(path: string): Promise<void> {
   const db = await getDb();
   await db.execute({ sql: "DELETE FROM photo_overrides WHERE path = ?", args: [path] });
+}
+
+export interface CachedMediaInfo {
+  time_taken: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+// A "not found" result is only trusted for this long before we ask Dropbox
+// again — covers a freshly-uploaded photo whose metadata was still
+// processing ("pending") the first time we checked. A "found" result never
+// goes stale: a photo's capture date/GPS never changes once taken.
+const NEGATIVE_CACHE_TTL_HOURS = Number(process.env.PHOTO_METADATA_NEGATIVE_TTL_HOURS ?? "24");
+
+/** Looks up cached Dropbox capture-time/GPS metadata for a batch of paths.
+ * Only returns entries that are still considered fresh (see above) — a
+ * missing/absent path means "go fetch it from Dropbox". */
+export async function getCachedMediaInfo(
+  paths: string[]
+): Promise<Map<string, CachedMediaInfo | null>> {
+  const result = new Map<string, CachedMediaInfo | null>();
+  if (paths.length === 0) return result;
+
+  const db = await getDb();
+  const placeholders = paths.map(() => "?").join(",");
+  const rs = await db.execute({
+    sql: `SELECT path, time_taken, lat, lng, found, checked_at FROM photo_media_cache WHERE path IN (${placeholders})`,
+    args: paths,
+  });
+
+  const staleBefore = Date.now() - NEGATIVE_CACHE_TTL_HOURS * 3_600_000;
+  for (const row of rs.rows) {
+    const found = Number(row.found) === 1;
+    if (!found) {
+      const checkedAt = Date.parse(`${String(row.checked_at).replace(" ", "T")}Z`);
+      if (checkedAt < staleBefore) continue; // treat as a cache miss, re-check
+      result.set(row.path as string, null);
+    } else {
+      result.set(row.path as string, {
+        time_taken: row.time_taken as string | null,
+        lat: row.lat as number | null,
+        lng: row.lng as number | null,
+      });
+    }
+  }
+  return result;
+}
+
+export interface MediaCacheEntry {
+  path: string;
+  time_taken: string | null;
+  lat: number | null;
+  lng: number | null;
+  found: boolean;
+}
+
+export async function setCachedMediaInfo(entries: MediaCacheEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+  const db = await getDb();
+  await db.batch(
+    entries.map((e) => ({
+      sql: `INSERT INTO photo_media_cache (path, time_taken, lat, lng, found, checked_at)
+            VALUES (:path, :time_taken, :lat, :lng, :found, datetime('now'))
+            ON CONFLICT(path) DO UPDATE SET
+              time_taken = :time_taken, lat = :lat, lng = :lng, found = :found,
+              checked_at = datetime('now')`,
+      args: {
+        path: e.path,
+        time_taken: e.time_taken,
+        lat: e.lat,
+        lng: e.lng,
+        found: e.found ? 1 : 0,
+      },
+    })),
+    "write"
+  );
 }
